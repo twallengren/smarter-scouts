@@ -34,6 +34,28 @@ const MAX_CANDIDATE_ROUNDS = 4;
 const TAG = "[SmarterScouts]";
 const EXPLORE_OP = "UNITOPERATION_AUTOMATE_EXPLORE";
 const SAVE_KEY_PREFIX = "SMARTER_SCOUTS_TRACKED_V1:";
+/** Verbose tracing to UI.log (temporary, for the end-turn hang investigation). */
+const TRACE = true;
+/** Set false to run with the Auto Explore button hook disabled (bisecting). */
+const HOOK_BUTTON = true;
+
+function trace(...args) {
+	if (TRACE) console.warn(TAG, "TRACE", ...args);
+}
+
+// Catch anything that escapes our try/catch blocks or vanilla code we touch.
+try {
+	if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+		window.addEventListener("error", (e) => {
+			console.error(TAG, "window.error:", e && e.message, e && e.filename, e && e.lineno, e && e.error && e.error.stack);
+		});
+		window.addEventListener("unhandledrejection", (e) => {
+			console.error(TAG, "unhandledrejection:", e && e.reason && (e.reason.stack || e.reason));
+		});
+	}
+} catch (e) {
+	/* ignore */
+}
 
 // ---------------------------------------------------------------------------
 // Logging (warn, not log: see header)
@@ -477,11 +499,13 @@ function onPlayerTurnActivated(data) {
 
 function wrap(name, fn) {
 	return (data) => {
+		trace("event", name, data && data.unit ? `owner=${data.unit.owner} id=${data.unit.id}` : (data && data.player !== undefined ? `player=${data.player}` : ""));
 		try {
 			fn(data);
 		} catch (e) {
 			logErr("handler " + name, e);
 		}
+		trace("event done", name);
 	};
 }
 
@@ -501,12 +525,18 @@ engine.on("UnitRemovedFromMap", wrap("UnitRemovedFromMap", onUnitRemovedFromMap)
 // action.callback.
 // ---------------------------------------------------------------------------
 
-try {
+if (HOOK_BUTTON) try {
 	Controls.decorate("unit-actions", (component) => ({
-		beforeAttach() {},
+		beforeAttach() {
+			trace("unit-actions beforeAttach");
+		},
 		afterAttach() {
+			trace("unit-actions afterAttach start");
 			try {
-				if (component.__smarterScoutsWrapped) return;
+				if (component.__smarterScoutsWrapped) {
+					trace("already wrapped");
+					return;
+				}
 				component.__smarterScoutsWrapped = true;
 				const original = component.getUnitActions;
 				if (typeof original !== "function") {
@@ -514,7 +544,15 @@ try {
 					return;
 				}
 				component.getUnitActions = function (unit) {
-					const result = original.call(this, unit);
+					trace("getUnitActions wrapper enter", unit && unit.id ? `owner=${unit.id.owner} id=${unit.id.id}` : typeof unit);
+					let result;
+					try {
+						result = original.call(this, unit);
+					} catch (e) {
+						logErr("vanilla getUnitActions threw", e);
+						throw e;
+					}
+					trace("getUnitActions vanilla done; actions=", Array.isArray(this.actions) ? this.actions.length : typeof this.actions);
 					try {
 						if (!Array.isArray(this.actions)) return result;
 						for (const action of this.actions) {
@@ -542,18 +580,24 @@ try {
 					} catch (e) {
 						logErr("getUnitActions wrapper", e);
 					}
+					trace("getUnitActions wrapper exit");
 					return result;
 				};
 				log("Auto Explore action replaced");
 			} catch (e) {
 				logErr("decorate afterAttach", e);
 			}
+			trace("unit-actions afterAttach end");
 		},
-		beforeDetach() {},
-		afterDetach() {},
+		beforeDetach() {
+			trace("unit-actions beforeDetach");
+		},
+		afterDetach() {
+			trace("unit-actions afterDetach");
+		},
 	}));
 } catch (e) {
 	logErr("Controls.decorate", e);
 }
 
-log("loaded (danger radius " + DANGER_RADIUS + ")");
+log("loaded (danger radius " + DANGER_RADIUS + ", trace=" + TRACE + ", hookButton=" + HOOK_BUTTON + ")");
