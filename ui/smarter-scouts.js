@@ -4,8 +4,10 @@
 
 const TAG = "[SmarterScouts]";
 
+// NOTE: the game drops console.log output below its default LogSeverity;
+// console.warn/console.error do reach Logs/UI.log, so warn is used here.
 function log(...args) {
-	console.log(TAG, ...args);
+	console.warn(TAG, ...args);
 }
 
 function logErr(where, e) {
