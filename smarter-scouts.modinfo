@@ -3,7 +3,7 @@
 	xmlns="ModInfo">
 	<Properties>
 		<Name>Smarter Scouts</Name>
-		<Description>Makes scouts smarter.</Description>
+		<Description>A cautious Auto Explore: scouts move one tile at a time and stop the moment a hostile unit comes into view.</Description>
 		<Authors>twallengren</Authors>
 		<AffectsSavedGames>1</AffectsSavedGames>
 	</Properties>
