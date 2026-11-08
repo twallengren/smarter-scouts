@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Database>
+	<!-- Test change: scout sight range 2 -> 3 (base value is in
+	     Base/modules/base-standard/data/units.xml). If scouts see 3 tiles
+	     in game, the mod is loading correctly. -->
+	<Units>
+		<Update>
+			<Where UnitType="UNIT_SCOUT"/>
+			<Set BaseSightRange="3"/>
+		</Update>
+	</Units>
+</Database>

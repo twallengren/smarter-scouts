@@ -1,0 +1,6 @@
+# Release builds
+*.zip
+# OS / editor clutter
+Thumbs.db
+desktop.ini
+.vscode/
