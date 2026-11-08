@@ -18,9 +18,9 @@
 	<ActionGroups>
 		<ActionGroup id="smarter-scouts-gameplay" scope="game" criteria="always">
 			<Actions>
-				<UpdateDatabase>
-					<Item>data/gameplay.xml</Item>
-				</UpdateDatabase>
+				<UIScripts>
+					<Item>ui/smarter-scouts.js</Item>
+				</UIScripts>
 			</Actions>
 		</ActionGroup>
 	</ActionGroups>
