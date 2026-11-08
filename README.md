@@ -8,7 +8,7 @@ A Civilization VII mod that replaces the Auto Explore action for your units with
 - Each turn the mod picks a "frontier" target: a revealed land tile on the same landmass that borders unexplored tiles, scored by unexplored neighbours and distance.
 - It paths to the target and steps one tile at a time, re-checking for threats after each step.
 - A threat is a visible unit within `DANGER_RADIUS` tiles (default 3) that is military (`CORE_CLASS_MILITARY` or exerts zone of control) and belongs to a player you are at war with, a hostile independent power, or barbarians.
-- Press Auto Explore again, or give the unit any other order, to turn the behaviour off.
+- Give the unit any other order (move, sleep, skip turn, ...) to turn the behaviour off. Pressing Auto Explore again on an exploring unit just makes it step immediately.
 - Exploring units are remembered across save and load.
 - When nothing reachable is left to explore, the unit stops and is selected.
 

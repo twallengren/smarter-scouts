@@ -333,10 +333,20 @@ function step(entry) {
 		untrack(entry, "unit no longer on map");
 		return;
 	}
-	if (!isLocalTurnActive()) return; // never issue orders during other players' turns
-	if (entry.pendingDest) return; // waiting for UnitMoveComplete
 	const moves = unit.Movement ? unit.Movement.movementMovesRemaining : 0;
-	if (!(moves > 0)) return; // finished for this turn
+	trace(`step ${keyOf(entry.cid)} at ${js(unit.location)} moves=${moves} turnActive=${isLocalTurnActive()} pending=${js(entry.pendingDest)} steps=${entry.stepsThisTurn} activity=${unit.activityType}`);
+	if (!isLocalTurnActive()) {
+		trace("step: local turn not active; skipping");
+		return; // never issue orders during other players' turns
+	}
+	if (entry.pendingDest) {
+		trace("step: move still pending; skipping");
+		return; // waiting for UnitMoveComplete
+	}
+	if (!(moves > 0)) {
+		trace("step: no moves left this turn");
+		return; // finished for this turn
+	}
 	if (entry.stepsThisTurn >= MAX_STEPS_PER_TURN) {
 		log(`${keyOf(entry.cid)} hit MAX_STEPS_PER_TURN; pausing until next turn`);
 		return;
@@ -432,14 +442,18 @@ function endTurnForAll() {
 }
 
 /**
- * Called from the (replaced) Auto Explore button. Toggles on/off.
+ * Called from the (replaced) Auto Explore button. Starts exploring, or if the
+ * unit is already exploring, nudges it to step now. (Not a toggle: the button
+ * has no on/off indicator, so a toggle is too easy to flip by accident. Any
+ * other order given to the unit stops it.)
  * @returns {boolean} true if handled, false if vanilla should run instead.
  */
-function toggleExploring(unit) {
+function startExploring(unit) {
 	restoreTracked();
 	const existing = entryFor(unit.id);
 	if (existing) {
-		untrack(existing, "player toggled Auto Explore off");
+		log(`already exploring ${keyOf(unit.id)}; stepping now`);
+		step(existing);
 		return true;
 	}
 	if (!isLandUnit(unit)) return false; // naval/embarked: vanilla behaviour
@@ -492,9 +506,16 @@ function onUnitRemovedFromMap(data) {
 	if (entry) untrack(entry, "removed from map");
 }
 
+let turnBegunFor = -1;
+
 function onPlayerTurnActivated(data) {
-	// Covers loading a save mid-turn, where LocalPlayerTurnBegin won't fire.
-	if (data && data.player === localPlayerID()) restoreTracked();
+	if (!data || data.player !== localPlayerID()) return;
+	// LocalPlayerTurnBegin fires before the player is flagged turn-active, so
+	// orders issued there are refused. Run the per-turn work here instead, once
+	// per game turn. This also covers loading a save mid-turn.
+	if (turnBegunFor === Game.turn) return;
+	turnBegunFor = Game.turn;
+	beginTurnForAll();
 }
 
 function wrap(name, fn) {
@@ -509,7 +530,6 @@ function wrap(name, fn) {
 	};
 }
 
-engine.on("LocalPlayerTurnBegin", wrap("LocalPlayerTurnBegin", beginTurnForAll));
 engine.on("LocalPlayerTurnEnd", wrap("LocalPlayerTurnEnd", endTurnForAll));
 engine.on("PlayerTurnActivated", wrap("PlayerTurnActivated", onPlayerTurnActivated));
 engine.on("UnitMoveComplete", wrap("UnitMoveComplete", onUnitMoveComplete));
@@ -559,14 +579,10 @@ if (HOOK_BUTTON) try {
 							if (!action || action.type !== EXPLORE_OP) continue;
 							const vanilla = action.callback;
 							const panel = this;
-							// Allow toggling OFF even when vanilla would grey the
-							// button out (e.g. no moves left).
-							if (entryFor(unit.id)) action.active = true;
 							action.callback = (location) => {
 								try {
-									const tracking = !!entryFor(unit.id);
-									if (!tracking && !action.active) return;
-									const handled = toggleExploring(unit);
+									if (!action.active) return;
+									const handled = startExploring(unit);
 									if (!handled && typeof vanilla === "function") {
 										vanilla(location);
 										return;
